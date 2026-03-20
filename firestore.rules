@@ -1,0 +1,51 @@
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    /**
+     * ACREIMEX SECURITY RULES - JERARQUÍA SEGREGADA
+     * 
+     * 1. Rastreo Público: Permite 'get' individual por ID.
+     * 2. Súper Usuario: UID 'gzdwbGKXnkOtBrt6xXgPOkOzkl33' tiene control total (list, get, write, delete).
+     * 3. Asesores: Pueden listar SOLO sus propios clientes (donde createdByUid == su UID).
+     */
+
+    match /users/admin/transfers/{transferId} {
+      // Rastreo público por ID exacto para clientes
+      allow get: if true;
+      
+      // Listado segregado: Súper Usuario ve todo, Asesores solo lo propio
+      allow list: if request.auth != null && (
+        request.auth.uid == 'gzdwbGKXnkOtBrt6xXgPOkOzkl33' || 
+        resource.data.createdByUid == request.auth.uid
+      );
+
+      // Creación permitida para cualquier asesor autenticado
+      allow create: if request.auth != null;
+
+      // Actualización permitida para el Súper Usuario o el creador del registro
+      allow update: if request.auth != null && (
+        request.auth.uid == 'gzdwbGKXnkOtBrt6xXgPOkOzkl33' || 
+        resource.data.createdByUid == request.auth.uid
+      );
+      
+      // Eliminación restringida EXCLUSIVAMENTE al Súper Usuario
+      allow delete: if request.auth != null && request.auth.uid == 'gzdwbGKXnkOtBrt6xXgPOkOzkl33';
+    }
+
+    // Configuración global de cuenta bancaria
+    match /users/admin/config/account {
+      allow read: if true; // Lectura pública para que el portal de rastreo pueda funcionar
+      allow write: if request.auth != null && request.auth.uid == 'gzdwbGKXnkOtBrt6xXgPOkOzkl33';
+    }
+
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    match /{path=**} {
+      allow read, write: if false;
+    }
+  }
+}

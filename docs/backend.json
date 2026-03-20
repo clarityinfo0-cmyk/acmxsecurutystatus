@@ -1,0 +1,84 @@
+
+{
+  "entities": {
+    "Transfer": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Transfer",
+      "type": "object",
+      "description": "Represents a single money transfer transaction made through the AVA FIN application.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Transfer entity."
+        },
+        "recipientName": {
+          "type": "string",
+          "description": "The full name of the individual or entity receiving the transfer."
+        },
+        "recipientAccount": {
+          "type": "string",
+          "description": "The account number of the recipient."
+        },
+        "recipientBank": {
+          "type": "string",
+          "description": "The name of the financial institution where the recipient's account is held."
+        },
+        "amount": {
+          "type": "number",
+          "description": "The monetary amount of the transfer, specified in MXN."
+        },
+        "transferDate": {
+          "type": "string",
+          "description": "The date and time when the transfer was successfully completed.",
+          "format": "date-time"
+        },
+        "folio": {
+          "type": "string",
+          "description": "A unique system-generated folio number."
+        },
+        "status": {
+          "type": "string",
+          "description": "The current status of the transfer."
+        },
+        "createdByUid": {
+          "type": "string",
+          "description": "The UID of the advisor who created this record."
+        },
+        "createdBy": {
+          "type": "string",
+          "description": "The email of the advisor who created this record."
+        }
+      },
+      "required": [
+        "id",
+        "recipientName",
+        "recipientBank",
+        "amount",
+        "transferDate",
+        "folio",
+        "status",
+        "createdByUid"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/users/admin/transfers/{transferId}",
+        "definition": {
+          "entityName": "Transfer",
+          "schema": {
+            "$ref": "#/backend/entities/Transfer"
+          },
+          "description": "Centralized transfers collection with ownership tracking for siloing and superuser access."
+        }
+      }
+    ]
+  }
+}
