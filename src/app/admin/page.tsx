@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -10,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useFirebase, useUser, setDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking, useDoc, useMemoFirebase } from '@/firebase';
+import { useFirebase, useUser, setDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking, useDoc, useMemoFirebase, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { collection, query, doc, onSnapshot, where } from 'firebase/firestore';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
@@ -77,16 +76,18 @@ export default function AdminDashboard() {
   useEffect(() => {
     if (!isAuthorized || !user) return;
 
-    let q = query(collection(firestore, 'users', 'admin', 'transfers'));
+    const transfersCol = collection(firestore, 'users', 'admin', 'transfers');
+    
+    // IMPORTANTE: Para cumplir con las reglas de seguridad, los asesores DEBEN filtrar por su UID en la consulta.
+    // Firestore no permite listar una colección completa si las reglas restringen el acceso por documento.
+    const q = isSuperUser 
+      ? query(transfersCol) 
+      : query(transfersCol, where('createdByUid', '==', user.uid));
     
     const unsubscribe = onSnapshot(q, (snapshot) => {
       let data = snapshot.docs.map(doc => ({ ...doc.data(), _id: doc.id }));
       
-      // Filtrado en memoria para evitar errores de índices compuestos inmediatos
-      if (!isSuperUser) {
-        data = data.filter(d => d.createdByUid === user.uid);
-      }
-
+      // Ordenamiento en memoria para evitar errores de índices compuestos inmediatos
       data.sort((a, b) => {
         if (isSuperUser) {
           const advisorA = (a.createdBy || '').toLowerCase();
@@ -98,6 +99,13 @@ export default function AdminDashboard() {
       });
       
       setTransfers(data);
+    }, (error) => {
+      // Manejo de errores de permisos contextuales
+      const contextualError = new FirestorePermissionError({
+        path: transfersCol.path,
+        operation: 'list',
+      });
+      errorEmitter.emit('permission-error', contextualError);
     });
     return () => unsubscribe();
   }, [isAuthorized, user?.uid, isSuperUser, firestore]);
